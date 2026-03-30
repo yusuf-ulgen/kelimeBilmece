@@ -16,17 +16,18 @@ export default function GamePage() {
     const [gameState, setGameState] = useState<'lobby' | 'playing' | 'gameover'>('lobby');
     const [sessionId, setSessionId] = useState('');
     const [score, setScore] = useState(0);
+    const [highScore, setHighScore] = useState(0);
     const [words, setWords] = useState<string[]>([]);
     const [error, setError] = useState('');
     const [category, setCategory] = useState('Genel');
     const [difficulty, setDifficulty] = useState('Medium');
     const [timerKey, setTimerKey] = useState(0);
+    const [hintsRemaining, setHintsRemaining] = useState(3);
     
     // Effects State
     const [definition, setDefinition] = useState<string | null>(null);
     const [isPerfect, setIsPerfect] = useState(false);
     const [isGlitched, setIsGlitched] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(10);
 
     // Initial Start
     const startGame = async () => {
@@ -35,22 +36,53 @@ export default function GamePage() {
             const data = await res.json();
             setSessionId(data.id);
             setScore(0);
-            setWords([]);
+            setWords(data.usedWords || []);
             setError('');
+            setHintsRemaining(3);
+            
+            // Load HighScore
+            const savedScore = localStorage.getItem(`vortex_highScore_${category}`);
+            if (savedScore) {
+                setHighScore(Number(savedScore));
+            } else {
+                setHighScore(0);
+            }
+            
             setGameState('playing');
         } catch (e) {
             setError("Backend bağlantısı kurulamadı!");
         }
     };
 
-    // Metronome Logic
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (gameState === 'playing' && timerKey > 0) { // Simple mock for timer countdown in page
-            // Note: This would normally be synced with the Timer component
+    const handleGameOver = () => {
+        // Save score if it's the highest
+        if (score > highScore) {
+            localStorage.setItem(`vortex_highScore_${category}`, score.toString());
+            setHighScore(score);
         }
-        return () => clearInterval(interval);
-    }, [gameState]);
+        setGameState('gameover');
+    };
+
+    const handleHint = async () => {
+        if (hintsRemaining <= 0 || gameState !== 'playing') return;
+
+        try {
+            const res = await fetch(`${API_BASE}/hint/${sessionId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setHintsRemaining(prev => prev - 1);
+                // Call handleWordSubmit directly to auto-complete and submit
+                await handleWordSubmit(data.word);
+            } else {
+                const errorData = await res.text();
+                setError("İpucu bulunamadı!");
+                setIsGlitched(true);
+                setTimeout(() => setIsGlitched(false), 500);
+            }
+        } catch (e) {
+            setError("İpucu alınamadı!");
+        }
+    };
 
     const handleWordSubmit = async (word: string): Promise<boolean> => {
         try {
@@ -70,7 +102,15 @@ export default function GamePage() {
                 }
                 
                 setWords([...words, word.toLowerCase()]);
-                setScore(data.newScore);
+                const newScore = data.newScore;
+                setScore(newScore);
+                
+                // Real-time high score update
+                if (newScore > highScore) {
+                    setHighScore(newScore);
+                    localStorage.setItem(`vortex_highScore_${category}`, newScore.toString());
+                }
+
                 setDefinition(data.definition);
                 setError('');
                 setTimerKey(prev => prev + 1);
@@ -92,6 +132,8 @@ export default function GamePage() {
     };
 
     if (gameState === 'lobby') {
+        const difficultyMap = [{ id: 'Easy', label: 'Kolay' }, { id: 'Medium', label: 'Orta' }, { id: 'Hard', label: 'Zor' }];
+        
         return (
             <div className="flex flex-col items-center gap-12 z-10 w-full max-w-2xl px-6">
                 <DynamicBackground />
@@ -100,24 +142,44 @@ export default function GamePage() {
                     <p className="text-zinc-500 font-bold tracking-[1em] uppercase text-xs">Premium Word Chain Experience</p>
                 </motion.div>
 
-                <div className="grid grid-cols-2 gap-4 w-full">
-                    {['Genel', 'Hayvanlar', 'Şehirler'].map(cat => (
-                        <button 
-                            key={cat}
-                            onClick={() => setCategory(cat)}
-                            className={`p-6 border-2 transition-all rounded-3xl font-black uppercase tracking-widest ${category === cat ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
-                        >
-                            {cat}
+                <div className="w-full space-y-6">
+                    <div className="flex justify-center gap-2 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                        Kategori Seç
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                        {['Genel', 'Hayvanlar', 'Şehirler'].map(cat => (
+                            <button 
+                                key={cat}
+                                onClick={() => setCategory(cat)}
+                                className={`p-6 border-2 transition-all rounded-3xl font-black uppercase tracking-widest ${category === cat ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                        <button className="p-6 border-2 border-dashed border-white/10 text-zinc-700 rounded-3xl font-black uppercase cursor-not-allowed">
+                            DUEL (SOON)
                         </button>
-                    ))}
-                    <button className="p-6 border-2 border-dashed border-white/10 text-zinc-700 rounded-3xl font-black uppercase cursor-not-allowed">
-                        DUEL (SOON)
-                    </button>
+                    </div>
+
+                    <div className="flex justify-center gap-2 mt-8 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                        Zorluk Seviyesi
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 w-full">
+                        {difficultyMap.map(diff => (
+                            <button 
+                                key={diff.id}
+                                onClick={() => setDifficulty(diff.id)}
+                                className={`p-4 border-2 transition-all rounded-3xl font-black uppercase tracking-widest text-sm py-4 ${difficulty === diff.id ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
+                            >
+                                {diff.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <button 
                     onClick={startGame}
-                    className="w-full bg-white text-black p-10 rounded-[2.5rem] text-4xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95"
+                    className="w-full bg-white text-black p-10 rounded-[2.5rem] text-4xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95 mt-4"
                 >
                     BAŞLAT
                 </button>
@@ -126,14 +188,21 @@ export default function GamePage() {
     }
 
     if (gameState === 'gameover') {
+        const isNewRecord = score > 0 && score === highScore;
+        
         return (
             <div className="z-20 flex flex-col items-center gap-6 w-full max-w-5xl">
                 <DynamicBackground />
                 <h2 className="text-7xl font-black uppercase italic text-white/20">SEANS ÖZETİ</h2>
-                <div className="flex flex-col items-center bg-zinc-900/50 p-10 rounded-[3rem] border border-white/10 backdrop-blur-xl w-full">
+                <div className="flex flex-col items-center bg-zinc-900/50 p-10 rounded-[3rem] border border-white/10 backdrop-blur-xl w-full relative">
+                    {isNewRecord && (
+                        <div className="absolute -top-6 bg-yellow-400 text-black px-6 py-2 rounded-full font-black italic tracking-widest flex items-center gap-2 animate-bounce">
+                            <Trophy size={18} /> YENİ REKOR
+                        </div>
+                    )}
+                    
                     <p className="text-zinc-500 uppercase font-black tracking-widest mb-2">Final Skor</p>
                     <p className="text-9xl font-black italic mb-10">{score}</p>
-                    <WordCloud words={words} />
                     <button 
                         onClick={() => setGameState('lobby')}
                         className="mt-12 flex items-center gap-4 bg-white text-black px-12 py-6 rounded-3xl text-3xl font-black uppercase hover:scale-105 transition-all"
@@ -149,10 +218,16 @@ export default function GamePage() {
         <div className={`w-full h-screen flex flex-col items-center justify-between py-12 px-6 overflow-hidden ${isGlitched ? 'glitch-active' : ''} crt-overlay`}>
             <DynamicBackground />
             
+            {/* Top Bar with High Score */}
+            <div className="absolute top-8 left-8 flex flex-col opacity-60">
+                <span className="text-zinc-500 text-xs font-black uppercase tracking-widest">En Yüksek ({category})</span>
+                <span className="text-3xl font-black italic flex items-center gap-2"><Trophy size={20} className="text-yellow-500" /> {highScore}</span>
+            </div>
+
             <div className="w-full z-10 flex flex-col items-center">
                 <Timer 
-                    duration={difficulty === 'Hard' ? 5 : difficulty === 'Medium' ? 7 : 10} 
-                    onTimeUp={() => setGameState('gameover')} 
+                    duration={difficulty === 'Hard' ? 10 : difficulty === 'Medium' ? 14 : 20} 
+                    onTimeUp={handleGameOver} 
                     resetTrigger={timerKey} 
                 />
             </div>
@@ -193,7 +268,7 @@ export default function GamePage() {
                 </AnimatePresence>
             </div>
 
-            <div className="w-full max-w-3xl z-10 relative">
+            <div className="w-full max-w-3xl z-10 relative mt-auto">
                 <GameInput 
                     onWordSubmit={handleWordSubmit} 
                     disabled={gameState !== 'playing'}
@@ -202,10 +277,14 @@ export default function GamePage() {
                 />
                 
                 <div className="absolute -bottom-8 left-0 right-0 flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-zinc-600">
-                    <div className="flex items-center gap-1"><Zap size={10} /> {difficulty}</div>
+                    <div className="flex items-center gap-1"><Zap size={10} /> {difficulty === 'Hard' ? 'ZOR' : difficulty === 'Medium' ? 'ORTA' : 'KOLAY'}</div>
                     <div className="flex items-center gap-1"><Layers size={10} /> {category}</div>
-                    <button className="flex items-center gap-1 hover:text-white transition-colors cursor-help">
-                        <HelpCircle size={10} /> İPUCU (3)
+                    <button 
+                        onClick={handleHint}
+                        disabled={hintsRemaining <= 0}
+                        className={`flex items-center gap-1 transition-colors ${hintsRemaining > 0 ? 'hover:text-white cursor-help' : 'opacity-30 cursor-not-allowed'}`}
+                    >
+                        <HelpCircle size={10} /> İPUCU ({hintsRemaining})
                     </button>
                 </div>
             </div>

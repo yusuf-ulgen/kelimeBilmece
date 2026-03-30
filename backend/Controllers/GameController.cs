@@ -23,6 +23,11 @@ public class GameController : ControllerBase
     public IActionResult StartGame([FromQuery] string category = "Genel", [FromQuery] string difficulty = "Easy")
     {
         var session = new GameSession { Category = category, Difficulty = difficulty };
+        
+        // İlk kelimeyi uygulamadan ver
+        var startWord = _dictionaryService.GetRandomWord(category);
+        session.UsedWords.Add(startWord);
+        
         _sessions[session.Id] = session;
         return Ok(session);
     }
@@ -84,5 +89,23 @@ public class GameController : ControllerBase
             IsCombo = isCombo,
             BonusPoints = bonusPoints
         });
+    }
+
+    [HttpGet("hint/{sessionId}")]
+    public IActionResult GetHint(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+            return NotFound("Oturum bulunamadı.");
+
+        if (session.UsedWords.Count == 0)
+            return BadRequest("Henüz kelime girilmemiş.");
+
+        char lastLetter = session.UsedWords.Last().Last();
+        var hint = _dictionaryService.GetHintWord(session.Category, lastLetter, session.UsedWords);
+
+        if (hint == null)
+            return NotFound("Bu harf ile başlayan yeni kelime kalmadı!");
+
+        return Ok(new { word = hint });
     }
 }

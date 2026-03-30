@@ -1,28 +1,37 @@
 using Caterpillar.Api.Models;
+using System.Text.Json;
 
 namespace Caterpillar.Api.Services;
 
 public class DictionaryService
 {
-    private readonly Dictionary<string, (HashSet<string> Words, Dictionary<string, string> Definitions)> _categories = new()
+    private readonly Dictionary<string, (HashSet<string> Words, Dictionary<string, string> Definitions)> _categories = new();
+
+    public DictionaryService()
     {
-        { "Genel", (
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "elma", "armut", "araba", "ayna", "ayakkabı", "balık", "bardak", "bilgisayar", "ceket", "çanta", "deniz", "defter", "ekmek", "ev", "fare", "fincan", "güneş", "gözlük", "halı", "hastane", "ışık", "ırmak", "iğne", "incir", "jilet", "jeton", "kalem", "kapı", "limon", "lamba", "masa", "minder", "nar", "nehir", "okul", "orman", "para", "pencere", "radyo", "resim", "saat", "sandalye", "tabak", "telefon", "uçak", "uyku" },
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-                { "elma", "Gülgillerden, çiçekleri pembe veya beyaz bir ağacın meyvesi." },
-                { "araba", "Tekerlekli, motorlu veya motorsuz kara taşıtı." },
-                { "deniz", "Yer kabuğunun çukur bölümlerini kaplayan büyük tuzlu su kütlesi." },
-                { "okul", "Her türlü eğitim ve öğretimin toplu olarak yapıldığı yer." }
+        InitializeDictionary();
+    }
+
+    private void InitializeDictionary()
+    {
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "dictionary.json");
+        if (File.Exists(filePath))
+        {
+            var json = File.ReadAllText(filePath);
+            var parsedData = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
+
+            if (parsedData != null)
+            {
+                foreach (var kvp in parsedData)
+                {
+                    _categories[kvp.Key] = (
+                        new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase),
+                        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    );
+                }
             }
-        ) },
-        { "Hayvanlar", (
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "aslan", "ayı", "at", "balina", "buzağı", "ceylan", "çita", "deve", "domuz", "eşek", "fare", "fil", "geyik", "güvercin", "horoz", "inek", "istakoz", "jaguar", "kaplan", "kedi", "köpek", "leylek", "maymun", "panda", "penguen", "rakun", "sincap", "tavşan", "timsah", "zebra" },
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-                { "aslan", "Kedigillerden, Afrika ve Asya'da yaşayan çok güçlü memeli hayvan." },
-                { "kedi", "Evcilleştirilmiş, küçük ve çevik bir memeli hayvan." }
-            }
-        ) }
-    };
+        }
+    }
 
     public (bool Valid, string? Definition) ValidateAndGetDefinition(string category, string word)
     {
@@ -33,4 +42,24 @@ public class DictionaryService
     }
 
     public List<string> GetCategories() => _categories.Keys.ToList();
+
+    public string GetRandomWord(string category)
+    {
+        var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
+        var rnd = new Random();
+        return cat.Words.ElementAt(rnd.Next(cat.Words.Count));
+    }
+
+    public string? GetHintWord(string category, char startingLetter, List<string> usedWords)
+    {
+        var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
+        var available = cat.Words.Where(w => 
+            w.StartsWith(startingLetter.ToString(), StringComparison.OrdinalIgnoreCase) && 
+            !usedWords.Contains(w, StringComparer.OrdinalIgnoreCase)
+        ).ToList();
+
+        if (available.Count == 0) return null;
+        
+        return available[new Random().Next(available.Count)];
+    }
 }

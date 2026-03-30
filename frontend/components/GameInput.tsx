@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Send } from 'lucide-react';
 
 interface GameInputProps {
-    onWordSubmit: (word: string) => Promise<void>;
+    onWordSubmit: (word: string) => Promise<boolean>;
     disabled: boolean;
     error: string;
     lastLetter?: string;
