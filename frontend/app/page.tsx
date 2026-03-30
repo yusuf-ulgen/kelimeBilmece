@@ -9,7 +9,7 @@ import { Trophy, RefreshCw, Layers, Zap, Info, HelpCircle } from 'lucide-react';
 import { sounds } from '@/utils/SoundManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE = "http://localhost:5000/api/game";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/game` : "http://localhost:5000/api/game";
 
 export default function GamePage() {
     // Game State
