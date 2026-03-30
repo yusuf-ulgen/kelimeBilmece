@@ -7,7 +7,8 @@ namespace Caterpillar.Api.Controllers;
 [Route("api/[controller]")]
 public class PingController : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("/api/ping")]
+    [HttpHead("/api/ping")]
     public IActionResult Ping()
     {
         return Ok(new { message = "pong", timestamp = DateTime.UtcNow });
