@@ -1,6 +1,7 @@
 using Caterpillar.Api.Models;
 using System.Text.Json;
 using System.Net.Http;
+using System.Globalization;
 
 namespace Caterpillar.Api.Services;
 
@@ -9,6 +10,7 @@ public class DictionaryService
     private readonly Dictionary<string, (HashSet<string> Words, Dictionary<string, string> Definitions)> _categories = new();
     private readonly Dictionary<string, string> _apiCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly HttpClient _httpClient = new();
+    private static readonly CultureInfo TrCulture = new("tr-TR");
 
     public DictionaryService()
     {
@@ -38,8 +40,8 @@ public class DictionaryService
 
     public async Task<(bool Valid, string? Definition)> ValidateAndGetDefinitionAsync(string category, string word)
     {
-        // 0. Hazırlık
-        string searchWord = word.Trim().ToLower();
+        // 0. Turkish culture aware lowercasing
+        string searchWord = word.Trim().ToLower(TrCulture);
 
         // 1. Yerel Sözlük Kontrolü
         var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
@@ -58,15 +60,16 @@ public class DictionaryService
         // 3. TDK API Kontrolü
         var result = await TryFetchFromTdk(searchWord);
         
-        // 4. Fallback: Eğer bulunamadıysa ve birleşik kelime gibiyse (örn: elalem -> el alem)
-        // Şimdilik sadece çok bariz kelimeler için veya genel bir boşluk denemesi
-        if (!result.Valid && searchWord.Length > 4)
+        // 4. Fallbacks for common failures
+        if (!result.Valid)
         {
-            // Basit bir deneme: Bazı kelimeler TDK'da ayrı yazılır. 
-            // "elalem" gibi kelimeler için ortadan bölüp denemek yerine spesifik kurallar eklenebilir.
-            // Ancak en kolayı, eğer tdk'da bulunamadıysa popüler "hatalı" yazımları denemektir.
-            if (searchWord == "elalem") result = await TryFetchFromTdk("el alem");
-            // Diğer yaygın hatalar buraya eklenebilir veya daha jenerik bir çözüm üretilebilir.
+            // Case 1: Split words (e.g., elalem -> el alem)
+            if (searchWord == "elalem") 
+                result = await TryFetchFromTdk("el alem");
+            
+            // Case 2: Proper nouns or TDK specific capitalization
+            if (!result.Valid)
+                result = await TryFetchFromTdk(char.ToUpper(searchWord[0], TrCulture) + searchWord[1..]);
         }
 
         if (result.Valid)
@@ -81,16 +84,19 @@ public class DictionaryService
     {
         try
         {
+            // Standard headers to avoid 403 Forbidden
             using var request = new HttpRequestMessage(HttpMethod.Get, $"https://sozluk.gov.tr/gts?ara={Uri.EscapeDataString(word)}");
-            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
+            request.Headers.Add("Accept", "application/json, text/plain, */*");
+            request.Headers.Add("Referer", "https://sozluk.gov.tr/");
             
             var response = await _httpClient.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
                 
-                // TDK API kelime bulunamadığında {"error": "Sonuç bulunamadı"} döner
+                // TDK returns an array on success, but might return non-array JSON for error
+                using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
                 {
                     var firstMatch = doc.RootElement[0];
