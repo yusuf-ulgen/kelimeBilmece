@@ -57,27 +57,27 @@ public class DictionaryService
             return (true, cachedDef);
         }
 
-        // 3. TDK API Kontrolü
-        var result = await TryFetchFromTdk(searchWord);
+        // 3. TDK API Kontrolü (Parallel Execution for Speed)
+        var tasks = new List<Task<(bool Valid, string? Definition)>>();
+        tasks.Add(TryFetchFromTdk(searchWord));
         
-        // 4. Fallbacks for common failures
-        if (!result.Valid)
-        {
-            // Case 1: Split words (e.g., elalem -> el alem)
-            if (searchWord == "elalem") 
-                result = await TryFetchFromTdk("el alem");
-            
-            // Case 2: Proper nouns or TDK specific capitalization
-            if (!result.Valid)
-                result = await TryFetchFromTdk(char.ToUpper(searchWord[0], TrCulture) + searchWord[1..]);
-        }
+        // Add variations in parallel
+        if (searchWord == "elalem") 
+            tasks.Add(TryFetchFromTdk("el alem"));
+        
+        // Try capitalized variation too (common for TDK)
+        tasks.Add(TryFetchFromTdk(char.ToUpper(searchWord[0], TrCulture) + searchWord[1..]));
+
+        var results = await Task.WhenAll(tasks);
+        var result = results.FirstOrDefault(r => r.Valid);
 
         if (result.Valid)
         {
             _apiCache[searchWord] = result.Definition ?? "Tanım bulunamadı.";
+            return result;
         }
 
-        return result;
+        return (false, null);
     }
 
     private async Task<(bool Valid, string? Definition)> TryFetchFromTdk(string word)
