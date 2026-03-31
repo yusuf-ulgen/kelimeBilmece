@@ -130,15 +130,15 @@ export default function GamePage() {
         const difficultyMap = [{ id: 'Easy', label: 'Kolay' }, { id: 'Medium', label: 'Orta' }, { id: 'Hard', label: 'Zor' }];
         
         return (
-            <div className="flex flex-col items-center gap-8 z-10 w-full max-w-2xl px-6">
+            <div className="flex flex-col items-center gap-4 md:gap-6 z-10 w-full max-w-2xl px-6">
                 <DynamicBackground />
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center space-y-4">
-                    <h1 className="text-8xl md:text-9xl font-black italic tracking-tighter uppercase text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">VORTEX</h1>
-                    <p className="text-zinc-500 font-bold tracking-[1em] uppercase text-xs">Premium Word Chain Experience</p>
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center space-y-2 md:space-y-3">
+                    <h1 className="text-7xl md:text-8xl font-black italic tracking-tighter uppercase text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">VORTEX</h1>
+                    <p className="text-zinc-500 font-bold tracking-[1em] uppercase text-[10px] md:text-xs">Premium Word Chain Experience</p>
                 </motion.div>
 
-                <div className="w-full space-y-4">
-                    <div className="flex justify-center gap-2 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                <div className="w-full space-y-3 md:space-y-4">
+                    <div className="flex justify-center gap-2 mb-1 md:mb-2 text-zinc-500 font-bold tracking-widest text-[10px] md:text-xs uppercase">
                         Kategori Seç
                     </div>
                     <div className="grid grid-cols-2 gap-4 w-full">
@@ -174,7 +174,7 @@ export default function GamePage() {
 
                 <button 
                     onClick={startGame}
-                    className="w-full bg-white text-black p-6 md:p-8 rounded-[2rem] text-3xl md:text-4xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95"
+                    className="w-full bg-white text-black p-5 md:p-6 rounded-[2rem] text-2xl md:text-3xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95"
                 >
                     BAŞLAT
                 </button>
