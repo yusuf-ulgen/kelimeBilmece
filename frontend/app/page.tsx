@@ -5,7 +5,7 @@ import { WordChain } from '@/components/WordChain';
 import { GameInput } from '@/components/GameInput';
 import { DynamicBackground } from '@/components/DynamicBackground';
 import { WordCloud } from '@/components/WordCloud';
-import { Trophy, RefreshCw, Layers, Zap, Info, HelpCircle } from 'lucide-react';
+import { Trophy, RefreshCw, Layers, Zap, Info, HelpCircle, Github, Linkedin } from 'lucide-react';
 import { sounds } from '@/utils/SoundManager';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -178,6 +178,19 @@ export default function GamePage() {
                 >
                     BAŞLAT
                 </button>
+
+                {/* Social Links */}
+                <div className="flex justify-center items-center gap-6 mt-2 opacity-50 hover:opacity-100 transition-opacity">
+                    <a href="https://github.com/yusuf-ulgen/kelimeBilmece" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-110 transition-transform">
+                        <Github size={24} />
+                    </a>
+                    <a href="https://www.linkedin.com/in/yusuf-ulgen" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-110 transition-transform">
+                        <Linkedin size={24} />
+                    </a>
+                    <a href="https://yusufulgen.com" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-transform">
+                        <img src="/logo.png" alt="Yusuf Ülgen" className="w-6 h-6 object-contain" />
+                    </a>
+                </div>
             </div>
         );
     }
