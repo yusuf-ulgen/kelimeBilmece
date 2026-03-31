@@ -25,7 +25,6 @@ export default function GamePage() {
     const [hintsRemaining, setHintsRemaining] = useState(3);
     
     // Effects State
-    const [definition, setDefinition] = useState<string | null>(null);
     const [isPerfect, setIsPerfect] = useState(false);
     const [isGlitched, setIsGlitched] = useState(false);
 
@@ -111,12 +110,8 @@ export default function GamePage() {
                     localStorage.setItem(`vortex_highScore_${category}`, newScore.toString());
                 }
 
-                setDefinition(data.definition);
                 setError('');
                 setTimerKey(prev => prev + 1);
-                
-                // Clear definition after 3s
-                setTimeout(() => setDefinition(null), 3000);
                 return true;
             } else {
                 sounds.playError();
@@ -253,19 +248,6 @@ export default function GamePage() {
 
             <div className="z-10 w-full overflow-hidden flex flex-col items-center">
                 <WordChain words={words} />
-                <AnimatePresence>
-                    {definition && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            className="max-w-md bg-white text-black p-4 rounded-xl text-sm font-medium italic shadow-2xl relative"
-                        >
-                            <Info size={16} className="absolute -top-2 -left-2 bg-black text-white rounded-full p-0.5" />
-                            {definition}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
 
             <div className="w-full max-w-3xl z-10 relative mt-auto">

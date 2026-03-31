@@ -22,7 +22,6 @@ public class WordValidationResponse
     public bool IsValid { get; set; }
     public string Message { get; set; } = string.Empty;
     public int NewScore { get; set; }
-    public string? Definition { get; set; }
     public bool IsCombo { get; set; }
     public int BonusPoints { get; set; }
 }

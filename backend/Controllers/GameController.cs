@@ -55,8 +55,8 @@ public class GameController : ControllerBase
         if (session.UsedWords.Contains(request.Word.ToLower()))
             return Ok(new WordValidationResponse { IsValid = false, Message = "Bu kelime daha önce kullanıldı." });
 
-        // Sözlük kontrolü ve Anlam alma
-        var (isValid, definition) = await _dictionaryService.ValidateAndGetDefinitionAsync(session.Category, request.Word);
+        // Sözlük kontrolü
+        bool isValid = await _dictionaryService.ValidateWordAsync(session.Category, request.Word);
         if (!isValid)
             return Ok(new WordValidationResponse { IsValid = false, Message = "Bu kelime sözlükte yok." });
 
@@ -85,7 +85,6 @@ public class GameController : ControllerBase
             IsValid = true, 
             Message = isCombo ? "PERFECT! +KOMBO" : "Başarılı!", 
             NewScore = session.Score,
-            Definition = definition,
             IsCombo = isCombo,
             BonusPoints = bonusPoints
         });

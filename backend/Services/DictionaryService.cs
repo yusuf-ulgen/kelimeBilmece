@@ -38,7 +38,7 @@ public class DictionaryService
         }
     }
 
-    public async Task<(bool Valid, string? Definition)> ValidateAndGetDefinitionAsync(string category, string word)
+    public async Task<bool> ValidateWordAsync(string category, string word)
     {
         // 0. Turkish culture aware lowercasing
         string searchWord = word.Trim().ToLower(TrCulture);
@@ -47,44 +47,40 @@ public class DictionaryService
         var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
         if (cat.Words.Contains(searchWord))
         {
-            cat.Definitions.TryGetValue(searchWord, out string? localDef);
-            return (true, localDef);
+            return true;
         }
 
-        // 2. API Önbellek Kontrolü
-        if (_apiCache.TryGetValue(searchWord, out string? cachedDef))
+        // 2. API Önbellek Kontrolü (Sadece geçerlilik durumunu sakla)
+        if (_apiCache.ContainsKey(searchWord))
         {
-            return (true, cachedDef);
+            return true;
         }
 
         // 3. TDK API Kontrolü (Parallel Execution for Speed)
-        var tasks = new List<Task<(bool Valid, string? Definition)>>();
-        tasks.Add(TryFetchFromTdk(searchWord));
+        var tasks = new List<Task<bool>>();
+        tasks.Add(TryValidateWithTdk(searchWord));
         
-        // Add variations in parallel
         if (searchWord == "elalem") 
-            tasks.Add(TryFetchFromTdk("el alem"));
+            tasks.Add(TryValidateWithTdk("el alem"));
         
-        // Try capitalized variation too (common for TDK)
-        tasks.Add(TryFetchFromTdk(char.ToUpper(searchWord[0], TrCulture) + searchWord[1..]));
+        tasks.Add(TryValidateWithTdk(char.ToUpper(searchWord[0], TrCulture) + searchWord[1..]));
 
         var results = await Task.WhenAll(tasks);
-        var result = results.FirstOrDefault(r => r.Valid);
+        bool isValid = results.Any(v => v);
 
-        if (result.Valid)
+        if (isValid)
         {
-            _apiCache[searchWord] = result.Definition ?? "Tanım bulunamadı.";
-            return result;
+            _apiCache[searchWord] = "Valid"; // Sadece varlığını işaretle
+            return true;
         }
 
-        return (false, null);
+        return false;
     }
 
-    private async Task<(bool Valid, string? Definition)> TryFetchFromTdk(string word)
+    private async Task<bool> TryValidateWithTdk(string word)
     {
         try
         {
-            // Standard headers to avoid 403 Forbidden
             using var request = new HttpRequestMessage(HttpMethod.Get, $"https://sozluk.gov.tr/gts?ara={Uri.EscapeDataString(word)}");
             request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
             request.Headers.Add("Accept", "application/json, text/plain, */*");
@@ -94,32 +90,15 @@ public class DictionaryService
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                
-                // TDK returns an array on success, but might return non-array JSON for error
                 using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
-                {
-                    var firstMatch = doc.RootElement[0];
-                    string? definition = null;
-                    
-                    if (firstMatch.TryGetProperty("anlamlarListe", out var anlamlar) && anlamlar.GetArrayLength() > 0)
-                    {
-                        var firstAnlam = anlamlar[0];
-                        if (firstAnlam.TryGetProperty("anlam", out var anlamProp))
-                        {
-                            definition = anlamProp.GetString();
-                        }
-                    }
-
-                    return (true, definition);
-                }
+                return doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"TDK API Error for '{word}': {ex.Message}");
         }
-        return (false, null);
+        return false;
     }
 
     public List<string> GetCategories() => _categories.Keys.ToList();

@@ -62,10 +62,6 @@ export const WordChain = ({ words }: { words: string[] }) => {
                                         <span className="text-2xl font-black uppercase tracking-tighter">
                                             {word}
                                         </span>
-                                        <div className="flex flex-col items-center ml-4 border-l border-white/20 pl-4 h-full py-1">
-                                            <span className="text-zinc-500 text-[10px] font-bold uppercase leading-none">Harf</span>
-                                            <span className="text-white text-lg font-black leading-none">{word.slice(-1).toUpperCase()}</span>
-                                        </div>
                                     </div>
                                     {index < words.length - 1 && (
                                         <motion.div 
