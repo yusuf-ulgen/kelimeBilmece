@@ -38,30 +38,59 @@ public class DictionaryService
 
     public async Task<(bool Valid, string? Definition)> ValidateAndGetDefinitionAsync(string category, string word)
     {
+        // 0. Hazırlık
+        string searchWord = word.Trim().ToLower();
+
         // 1. Yerel Sözlük Kontrolü
         var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
-        if (cat.Words.Contains(word))
+        if (cat.Words.Contains(searchWord))
         {
-            cat.Definitions.TryGetValue(word, out string? localDef);
+            cat.Definitions.TryGetValue(searchWord, out string? localDef);
             return (true, localDef);
         }
 
         // 2. API Önbellek Kontrolü
-        if (_apiCache.TryGetValue(word, out string? cachedDef))
+        if (_apiCache.TryGetValue(searchWord, out string? cachedDef))
         {
             return (true, cachedDef);
         }
 
-        // 3. TDK API Kontrolü (Sadece Genel veya Fallback olarak diğerleri)
+        // 3. TDK API Kontrolü
+        var result = await TryFetchFromTdk(searchWord);
+        
+        // 4. Fallback: Eğer bulunamadıysa ve birleşik kelime gibiyse (örn: elalem -> el alem)
+        // Şimdilik sadece çok bariz kelimeler için veya genel bir boşluk denemesi
+        if (!result.Valid && searchWord.Length > 4)
+        {
+            // Basit bir deneme: Bazı kelimeler TDK'da ayrı yazılır. 
+            // "elalem" gibi kelimeler için ortadan bölüp denemek yerine spesifik kurallar eklenebilir.
+            // Ancak en kolayı, eğer tdk'da bulunamadıysa popüler "hatalı" yazımları denemektir.
+            if (searchWord == "elalem") result = await TryFetchFromTdk("el alem");
+            // Diğer yaygın hatalar buraya eklenebilir veya daha jenerik bir çözüm üretilebilir.
+        }
+
+        if (result.Valid)
+        {
+            _apiCache[searchWord] = result.Definition ?? "Tanım bulunamadı.";
+        }
+
+        return result;
+    }
+
+    private async Task<(bool Valid, string? Definition)> TryFetchFromTdk(string word)
+    {
         try
         {
-            var response = await _httpClient.GetAsync($"https://sozluk.gov.tr/gts?ara={Uri.EscapeDataString(word.ToLower())}");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://sozluk.gov.tr/gts?ara={Uri.EscapeDataString(word)}");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            
+            var response = await _httpClient.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(json);
                 
-                // TDK API kelime bulunamadığında error döner veya boş dizi döner
+                // TDK API kelime bulunamadığında {"error": "Sonuç bulunamadı"} döner
                 if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
                 {
                     var firstMatch = doc.RootElement[0];
@@ -69,21 +98,21 @@ public class DictionaryService
                     
                     if (firstMatch.TryGetProperty("anlamlarListe", out var anlamlar) && anlamlar.GetArrayLength() > 0)
                     {
-                        definition = anlamlar[0].GetProperty("anlam").GetString();
+                        var firstAnlam = anlamlar[0];
+                        if (firstAnlam.TryGetProperty("anlam", out var anlamProp))
+                        {
+                            definition = anlamProp.GetString();
+                        }
                     }
 
-                    // Önbelleğe al (Kelime geçerli)
-                    _apiCache[word] = definition ?? "Tanım bulunamadı.";
                     return (true, definition);
                 }
             }
         }
         catch (Exception ex)
         {
-            // API hatası durumunda yerel sonuca güven (zaten yukarıda kontrol ettik)
-            Console.WriteLine($"TDK API Error: {ex.Message}");
+            Console.WriteLine($"TDK API Error for '{word}': {ex.Message}");
         }
-
         return (false, null);
     }
 
