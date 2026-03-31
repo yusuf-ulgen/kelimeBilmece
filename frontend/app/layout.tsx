@@ -5,6 +5,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Tırtıl - Kelime Zinciri',
   description: 'Premium Kelime Zinciri Oyunu',
+  icons: {
+    icon: '/vercel_logo.png',
+  },
 };
 
 export default function RootLayout({

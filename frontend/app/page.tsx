@@ -130,14 +130,14 @@ export default function GamePage() {
         const difficultyMap = [{ id: 'Easy', label: 'Kolay' }, { id: 'Medium', label: 'Orta' }, { id: 'Hard', label: 'Zor' }];
         
         return (
-            <div className="flex flex-col items-center gap-12 z-10 w-full max-w-2xl px-6">
+            <div className="flex flex-col items-center gap-8 z-10 w-full max-w-2xl px-6">
                 <DynamicBackground />
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center space-y-4">
-                    <h1 className="text-9xl font-black italic tracking-tighter uppercase text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">VORTEX</h1>
+                    <h1 className="text-8xl md:text-9xl font-black italic tracking-tighter uppercase text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">VORTEX</h1>
                     <p className="text-zinc-500 font-bold tracking-[1em] uppercase text-xs">Premium Word Chain Experience</p>
                 </motion.div>
 
-                <div className="w-full space-y-6">
+                <div className="w-full space-y-4">
                     <div className="flex justify-center gap-2 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
                         Kategori Seç
                     </div>
@@ -146,17 +146,17 @@ export default function GamePage() {
                             <button 
                                 key={cat}
                                 onClick={() => setCategory(cat)}
-                                className={`p-6 border-2 transition-all rounded-3xl font-black uppercase tracking-widest ${category === cat ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
+                                className={`p-4 md:p-5 border-2 transition-all rounded-3xl font-black uppercase tracking-widest ${category === cat ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
                             >
                                 {cat}
                             </button>
                         ))}
-                        <button className="p-6 border-2 border-dashed border-white/10 text-zinc-700 rounded-3xl font-black uppercase cursor-not-allowed">
+                        <button className="p-4 md:p-5 border-2 border-dashed border-white/10 text-zinc-700 rounded-3xl font-black uppercase cursor-not-allowed">
                             DUEL (SOON)
                         </button>
                     </div>
 
-                    <div className="flex justify-center gap-2 mt-8 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                    <div className="flex justify-center gap-2 mt-4 mb-2 text-zinc-500 font-bold tracking-widest text-xs uppercase">
                         Zorluk Seviyesi
                     </div>
                     <div className="grid grid-cols-3 gap-4 w-full">
@@ -164,7 +164,7 @@ export default function GamePage() {
                             <button 
                                 key={diff.id}
                                 onClick={() => setDifficulty(diff.id)}
-                                className={`p-4 border-2 transition-all rounded-3xl font-black uppercase tracking-widest text-sm py-4 ${difficulty === diff.id ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
+                                className={`p-3 md:p-4 border-2 transition-all rounded-3xl font-black uppercase tracking-widest text-sm py-3 md:py-4 ${difficulty === diff.id ? 'bg-white text-black scale-105' : 'border-white/10 text-zinc-600 hover:border-white/30'}`}
                             >
                                 {diff.label}
                             </button>
@@ -174,7 +174,7 @@ export default function GamePage() {
 
                 <button 
                     onClick={startGame}
-                    className="w-full bg-white text-black p-10 rounded-[2.5rem] text-4xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95 mt-4"
+                    className="w-full bg-white text-black p-6 md:p-8 rounded-[2rem] text-3xl md:text-4xl font-black italic uppercase hover:shadow-[0_0_80px_rgba(255,255,255,0.4)] transition-all active:scale-95"
                 >
                     BAŞLAT
                 </button>
