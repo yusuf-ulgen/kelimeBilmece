@@ -1,11 +1,14 @@
 using Caterpillar.Api.Models;
 using System.Text.Json;
+using System.Net.Http;
 
 namespace Caterpillar.Api.Services;
 
 public class DictionaryService
 {
     private readonly Dictionary<string, (HashSet<string> Words, Dictionary<string, string> Definitions)> _categories = new();
+    private readonly Dictionary<string, string> _apiCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HttpClient _httpClient = new();
 
     public DictionaryService()
     {
@@ -33,12 +36,55 @@ public class DictionaryService
         }
     }
 
-    public (bool Valid, string? Definition) ValidateAndGetDefinition(string category, string word)
+    public async Task<(bool Valid, string? Definition)> ValidateAndGetDefinitionAsync(string category, string word)
     {
+        // 1. Yerel Sözlük Kontrolü
         var cat = _categories.ContainsKey(category) ? _categories[category] : _categories["Genel"];
-        bool isValid = cat.Words.Contains(word);
-        cat.Definitions.TryGetValue(word, out string? definition);
-        return (isValid, definition);
+        if (cat.Words.Contains(word))
+        {
+            cat.Definitions.TryGetValue(word, out string? localDef);
+            return (true, localDef);
+        }
+
+        // 2. API Önbellek Kontrolü
+        if (_apiCache.TryGetValue(word, out string? cachedDef))
+        {
+            return (true, cachedDef);
+        }
+
+        // 3. TDK API Kontrolü (Sadece Genel veya Fallback olarak diğerleri)
+        try
+        {
+            var response = await _httpClient.GetAsync($"https://sozluk.gov.tr/gts?ara={Uri.EscapeDataString(word.ToLower())}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                
+                // TDK API kelime bulunamadığında error döner veya boş dizi döner
+                if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+                {
+                    var firstMatch = doc.RootElement[0];
+                    string? definition = null;
+                    
+                    if (firstMatch.TryGetProperty("anlamlarListe", out var anlamlar) && anlamlar.GetArrayLength() > 0)
+                    {
+                        definition = anlamlar[0].GetProperty("anlam").GetString();
+                    }
+
+                    // Önbelleğe al (Kelime geçerli)
+                    _apiCache[word] = definition ?? "Tanım bulunamadı.";
+                    return (true, definition);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // API hatası durumunda yerel sonuca güven (zaten yukarıda kontrol ettik)
+            Console.WriteLine($"TDK API Error: {ex.Message}");
+        }
+
+        return (false, null);
     }
 
     public List<string> GetCategories() => _categories.Keys.ToList();

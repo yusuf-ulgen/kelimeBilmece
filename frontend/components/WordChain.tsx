@@ -1,9 +1,24 @@
 "use client";
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 export const WordChain = ({ words }: { words: string[] }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+                left: scrollRef.current.scrollWidth,
+                behavior: 'smooth'
+            });
+        }
+    }, [words.length]);
+
     return (
-        <div className="flex items-center gap-4 py-20 px-10 overflow-x-auto no-scrollbar scroll-smooth">
+        <div 
+            ref={scrollRef}
+            className="flex items-center gap-4 py-20 px-10 overflow-x-auto no-scrollbar scroll-smooth w-full"
+        >
             <AnimatePresence mode="popLayout">
                 {words.map((word, index) => (
                     <motion.div

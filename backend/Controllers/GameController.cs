@@ -33,7 +33,7 @@ public class GameController : ControllerBase
     }
 
     [HttpPost("validate")]
-    public IActionResult ValidateWord([FromBody] WordValidationRequest request)
+    public async Task<IActionResult> ValidateWord([FromBody] WordValidationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Word))
             return BadRequest(new WordValidationResponse { IsValid = false, Message = "Boş kelime girilemez." });
@@ -56,7 +56,7 @@ public class GameController : ControllerBase
             return Ok(new WordValidationResponse { IsValid = false, Message = "Bu kelime daha önce kullanıldı." });
 
         // Sözlük kontrolü ve Anlam alma
-        var (isValid, definition) = _dictionaryService.ValidateAndGetDefinition(session.Category, request.Word);
+        var (isValid, definition) = await _dictionaryService.ValidateAndGetDefinitionAsync(session.Category, request.Word);
         if (!isValid)
             return Ok(new WordValidationResponse { IsValid = false, Message = "Bu kelime sözlükte yok." });
 
