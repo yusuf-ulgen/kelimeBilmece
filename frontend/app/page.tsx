@@ -188,7 +188,7 @@ export default function GamePage() {
                         <Linkedin size={24} />
                     </a>
                     <a href="https://yusufulgen.com" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-transform">
-                        <img src="/logo.png" alt="Yusuf Ülgen" className="w-6 h-6 object-contain" />
+                        <img src="/logo.png" alt="Yusuf Ülgen" className="w-8 h-8 object-contain scale-110" />
                     </a>
                 </div>
             </div>
