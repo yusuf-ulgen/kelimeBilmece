@@ -30,7 +30,12 @@ export default function GamePage() {
     // Initial Start
     const startGame = () => {
         try {
+            console.log("Starting game with category:", category);
             const startWord = gameLogic.getRandomWord(category);
+            if (!startWord) {
+                throw new Error("Kategori için kelime bulunamadı!");
+            }
+            
             setScore(0);
             setWords([startWord.toLowerCase()]);
             setError('');
@@ -38,16 +43,22 @@ export default function GamePage() {
             setLastActivity(Date.now());
             
             // Load HighScore
-            const savedScore = localStorage.getItem(`vortex_highScore_${category}`);
-            if (savedScore) {
-                setHighScore(Number(savedScore));
-            } else {
+            try {
+                const savedScore = localStorage.getItem(`vortex_highScore_${category}`);
+                if (savedScore) {
+                    setHighScore(Number(savedScore));
+                } else {
+                    setHighScore(0);
+                }
+            } catch (lsError) {
+                console.warn("LocalStorage access failed:", lsError);
                 setHighScore(0);
             }
             
             setGameState('playing');
-        } catch (e) {
-            setError("Oyun başlatılamadı!");
+        } catch (e: any) {
+            console.error("Game start error:", e);
+            setError(`Oyun başlatılamadı: ${e.message || "Bilinmeyen hata"}`);
         }
     };
 
@@ -176,6 +187,16 @@ export default function GamePage() {
                 >
                     BAŞLAT
                 </button>
+
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        className="text-red-500 font-bold text-sm bg-red-500/10 px-4 py-2 rounded-xl"
+                    >
+                        {error}
+                    </motion.div>
+                )}
 
                 {/* Social Links */}
                 <div className="flex justify-center items-center gap-6 mt-2 opacity-50 hover:opacity-100 transition-opacity">

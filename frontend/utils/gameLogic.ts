@@ -1,6 +1,6 @@
 import dictionaryData from '../data/dictionary.json';
 
-const dictionary: Record<string, string[]> = dictionaryData;
+const dictionary: Record<string, string[]> = (dictionaryData as any).default || dictionaryData;
 
 export interface ValidationResponse {
     isValid: boolean;
@@ -18,7 +18,11 @@ export const gameLogic = {
     },
 
     getRandomWord(category: string): string {
-        const words = dictionary[category] || dictionary['Genel'];
+        const words = dictionary[category] || dictionary['Genel'] || [];
+        if (words.length === 0) {
+            console.error("No words found for category:", category);
+            return "";
+        }
         return words[Math.floor(Math.random() * words.length)];
     },
 

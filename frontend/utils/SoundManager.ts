@@ -5,7 +5,15 @@ class SoundManager {
 
   private init() {
     if (!this.ctx && typeof window !== 'undefined') {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        try {
+          this.ctx = new AudioContextClass();
+        } catch (e) {
+          console.warn("AudioContext could not be initialized:", e);
+          this.ctx = null;
+        }
+      }
     }
   }
 
