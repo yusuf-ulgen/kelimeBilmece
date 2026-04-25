@@ -8,13 +8,11 @@ import { WordCloud } from '@/components/WordCloud';
 import { Trophy, RefreshCw, Layers, Zap, Info, HelpCircle, Github, Linkedin } from 'lucide-react';
 import { sounds } from '@/utils/SoundManager';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/game` : "http://localhost:5000/api/game";
+import { gameLogic } from '../utils/gameLogic';
 
 export default function GamePage() {
     // Game State
     const [gameState, setGameState] = useState<'lobby' | 'playing' | 'gameover'>('lobby');
-    const [sessionId, setSessionId] = useState('');
     const [score, setScore] = useState(0);
     const [highScore, setHighScore] = useState(0);
     const [words, setWords] = useState<string[]>([]);
@@ -23,21 +21,21 @@ export default function GamePage() {
     const [difficulty, setDifficulty] = useState('Medium');
     const [timerKey, setTimerKey] = useState(0);
     const [hintsRemaining, setHintsRemaining] = useState(3);
+    const [lastActivity, setLastActivity] = useState(0);
     
     // Effects State
     const [isPerfect, setIsPerfect] = useState(false);
     const [isGlitched, setIsGlitched] = useState(false);
 
     // Initial Start
-    const startGame = async () => {
+    const startGame = () => {
         try {
-            const res = await fetch(`${API_BASE}/start?category=${category}&difficulty=${difficulty}`, { method: 'POST' });
-            const data = await res.json();
-            setSessionId(data.id);
+            const startWord = gameLogic.getRandomWord(category);
             setScore(0);
-            setWords(data.usedWords || []);
+            setWords([startWord.toLowerCase()]);
             setError('');
             setHintsRemaining(3);
+            setLastActivity(Date.now());
             
             // Load HighScore
             const savedScore = localStorage.getItem(`vortex_highScore_${category}`);
@@ -49,7 +47,7 @@ export default function GamePage() {
             
             setGameState('playing');
         } catch (e) {
-            setError("Backend bağlantısı kurulamadı!");
+            setError("Oyun başlatılamadı!");
         }
     };
 
@@ -65,44 +63,44 @@ export default function GamePage() {
     const handleHint = async () => {
         if (hintsRemaining <= 0 || gameState !== 'playing') return;
 
-        try {
-            const res = await fetch(`${API_BASE}/hint/${sessionId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setHintsRemaining(prev => prev - 1);
-                // Call handleWordSubmit directly to auto-complete and submit
-                await handleWordSubmit(data.word);
-            } else {
-                const errorData = await res.text();
-                setError("İpucu bulunamadı!");
-                setIsGlitched(true);
-                setTimeout(() => setIsGlitched(false), 500);
-            }
-        } catch (e) {
-            setError("İpucu alınamadı!");
+        const lastWord = words.length > 0 ? words[words.length - 1] : '';
+        const lastLetter = lastWord.slice(-1);
+        const hint = gameLogic.getHintWord(category, lastLetter, words);
+
+        if (hint) {
+            setHintsRemaining(prev => prev - 1);
+            // Call handleWordSubmit directly to auto-complete and submit
+            await handleWordSubmit(hint);
+        } else {
+            setError("İpucu bulunamadı!");
+            setIsGlitched(true);
+            setTimeout(() => setIsGlitched(false), 500);
         }
     };
 
     const handleWordSubmit = async (word: string): Promise<boolean> => {
         try {
             const lastWord = words.length > 0 ? words[words.length - 1] : '';
-            const res = await fetch(`${API_BASE}/validate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, word, previousWord: lastWord })
-            });
-            const data = await res.json();
+            const result = await gameLogic.validateWord(
+                category, 
+                word, 
+                lastWord, 
+                words, 
+                lastActivity, 
+                score
+            );
 
-            if (data.isValid) {
+            if (result.isValid) {
                 sounds.playSuccess();
-                if (data.isCombo) {
+                if (result.isCombo) {
                     setIsPerfect(true);
                     setTimeout(() => setIsPerfect(false), 1500);
                 }
                 
                 setWords([...words, word.toLowerCase()]);
-                const newScore = data.newScore;
+                const newScore = result.newScore || score;
                 setScore(newScore);
+                setLastActivity(Date.now());
                 
                 // Real-time high score update
                 if (newScore > highScore) {
@@ -117,11 +115,11 @@ export default function GamePage() {
                 sounds.playError();
                 setIsGlitched(true);
                 setTimeout(() => setIsGlitched(false), 500);
-                setError(data.message);
+                setError(result.message);
                 return false;
             }
         } catch (e) {
-            setError("Sunucu hatası!");
+            setError("Bir hata oluştu!");
             return false;
         }
     };
